@@ -1,17 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Home, PlusCircle, History, User, Wallet, Calendar, Filter, Moon, Sun, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
+import { Home, PlusCircle, History, User, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
 import Spline from '@splinetool/react-spline'
-
-const CATEGORIES = ["Food", "Bills", "Transport", "Shopping", "Savings", "Other"]
 
 const palette = {
   bg: 'bg-slate-950',
   card: 'bg-slate-900/70 backdrop-blur border border-white/5 shadow-xl',
   text: 'text-slate-100',
   sub: 'text-slate-400',
-  accent: 'from-indigo-500 via-blue-500 to-cyan-400',
-  green: 'bg-emerald-500',
-  red: 'bg-rose-500',
 }
 
 const apiBase = import.meta.env.VITE_BACKEND_URL || ''
@@ -30,7 +25,7 @@ function ProgressBar({ value }) {
   )
 }
 
-function Stat({ label, value, icon, tone='indigo' }) {
+function Stat({ label, value, icon }) {
   return (
     <div className={`rounded-2xl p-4 ${palette.card}`}>
       <div className="flex items-center justify-between mb-2">
@@ -55,7 +50,7 @@ function RecentItem({ item, currency }) {
           <div className="text-slate-400 text-[11px] mt-1">{new Date(item.date).toLocaleDateString()}</div>
         </div>
       </div>
-      <div className={`text-sm ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>{isIncome ? '+' : '-'}{currency}{item.amount.toFixed(2)}</div>
+      <div className={`text-sm ${isIncome ? 'text-emerald-400' : 'text-rose-400'}`}>{isIncome ? '+' : '-'}{currency}{Number(item.amount).toFixed(2)}</div>
     </div>
   )
 }
@@ -64,12 +59,12 @@ function AddSheet({ open, onClose, onAdd, categories }) {
   const [type, setType] = useState('expense')
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState('')
-  const [category, setCategory] = useState(categories[0])
+  const [category, setCategory] = useState(categories[0] || 'Other')
   const [notes, setNotes] = useState('')
 
   useEffect(()=>{
     if(open){
-      setType('expense'); setTitle(''); setAmount(''); setCategory(categories[0]); setNotes('')
+      setType('expense'); setTitle(''); setAmount(''); setCategory(categories[0] || 'Other'); setNotes('')
     }
   },[open, categories])
 
@@ -91,14 +86,14 @@ function AddSheet({ open, onClose, onAdd, categories }) {
             <button onClick={()=>setType('income')} className={`flex-1 py-2 rounded-xl text-sm ${type==='income'? 'bg-emerald-500 text-white' : 'bg-white/5 text-slate-300'}`}>Income</button>
           </div>
           <div className="space-y-3">
-            <input className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-400" placeholder="Title (e.g., Groceries)" value={title} onChange={e=>setTitle(e.target.value)} />
-            <input inputMode="decimal" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-400" placeholder="Amount" value={amount} onChange={e=>setAmount(e.target.value)} />
+            <input aria-label="Title" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-400" placeholder="Title (e.g., Groceries)" value={title} onChange={e=>setTitle(e.target.value)} />
+            <input aria-label="Amount" inputMode="decimal" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-400" placeholder="Amount" value={amount} onChange={e=>setAmount(e.target.value)} />
             <div className="flex gap-2 overflow-x-auto no-scrollbar">
               {categories.map(c => (
                 <button key={c} onClick={()=>setCategory(c)} className={`px-3 py-2 rounded-xl text-xs whitespace-nowrap ${category===c? 'bg-indigo-500 text-white' : 'bg-white/5 text-slate-300'}`}>{c}</button>
               ))}
             </div>
-            <textarea rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-400" placeholder="Notes (optional)" value={notes} onChange={e=>setNotes(e.target.value)} />
+            <textarea aria-label="Notes" rows={2} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-slate-400" placeholder="Notes (optional)" value={notes} onChange={e=>setNotes(e.target.value)} />
           </div>
           <button onClick={submit} className="w-full py-3 rounded-xl bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-400 text-white font-medium">Add</button>
         </div>
@@ -109,7 +104,6 @@ function AddSheet({ open, onClose, onAdd, categories }) {
 
 export default function MobileShell(){
   const [tab, setTab] = useState('home')
-  const [dark, setDark] = useState(true)
   const [sheetOpen, setSheetOpen] = useState(false)
 
   const [summary, setSummary] = useState(null)
@@ -117,8 +111,7 @@ export default function MobileShell(){
   const [currency, setCurrency] = useState('$')
   const [filters, setFilters] = useState({ category: '', type: '', start: '', end: '' })
   const [list, setList] = useState([])
-
-  const categories = CATEGORIES
+  const [categories, setCategories] = useState(["Food", "Bills", "Transport", "Shopping", "Savings", "Other"]) 
 
   async function fetchSummary(){
     try{
@@ -126,8 +119,8 @@ export default function MobileShell(){
       const data = await r.json()
       setSummary(data)
       setRecent(data.recent || [])
+      if(data.currency) setCurrency(data.currency)
     }catch(e){
-      // fallback demo data if backend isn't ready
       const demo = {
         balance: 1087.4,
         income: 1800,
@@ -136,6 +129,7 @@ export default function MobileShell(){
         month_spend: 412.6,
         budget: 1200,
         progress: 0.34,
+        currency: '$',
         recent: [
           { id: '1', title: 'Groceries', amount: 42.5, type: 'expense', category: 'Food', date: new Date().toISOString() },
           { id: '2', title: 'Metro', amount: 3.2, type: 'expense', category: 'Transport', date: new Date().toISOString() },
@@ -144,7 +138,16 @@ export default function MobileShell(){
       }
       setSummary(demo)
       setRecent(demo.recent)
+      setCurrency(demo.currency)
     }
+  }
+
+  async function fetchCategories(){
+    try{
+      const r = await fetch(`${apiBase}/categories`)
+      const data = await r.json()
+      if(Array.isArray(data) && data.length) setCategories(data)
+    }catch{}
   }
 
   async function fetchList(){
@@ -162,7 +165,7 @@ export default function MobileShell(){
     }
   }
 
-  useEffect(()=>{ fetchSummary() },[])
+  useEffect(()=>{ fetchSummary(); fetchCategories() },[])
   useEffect(()=>{ if(tab==='history') fetchList() },[tab, filters])
 
   async function addItem(item){
@@ -171,7 +174,6 @@ export default function MobileShell(){
       fetchSummary()
       if(tab==='history') fetchList()
     }catch{
-      // optimistic update fallback
       const fake = { ...item, id: Math.random().toString(36).slice(2), date: new Date().toISOString() }
       setRecent([fake, ...recent])
     }
@@ -202,7 +204,7 @@ export default function MobileShell(){
           <div className="mt-4">
             <ProgressBar value={progressVal} />
             <div className="flex justify-between text-[11px] text-slate-400 mt-1">
-              <span>Budget {currency}{summary?.budget ?? 0}</span>
+              <span>Target {currency}{summary?.budget ?? 0}</span>
               <span>{Math.round(progressVal*100)}%</span>
             </div>
           </div>
@@ -219,28 +221,28 @@ export default function MobileShell(){
             <button className="text-xs text-slate-400" onClick={()=>setTab('history')}>See all</button>
           </div>
           <div className={`rounded-3xl px-4 ${palette.card}`}>
-            {recent.slice(0,6).map(r => <RecentItem key={r.id || r._id} item={r} currency={currency}/>) }
+            {(recent||[]).slice(0,6).map(r => <RecentItem key={r.id || r._id} item={r} currency={currency}/>) }
           </div>
         </div>
       </div>
 
-      <button className="fixed bottom-20 right-5 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-400 text-white shadow-xl flex items-center justify-center" onClick={()=>setSheetOpen(true)}>
+      <button aria-label="Add transaction" className="fixed bottom-20 right-5 z-40 w-14 h-14 rounded-full bg-gradient-to-r from-indigo-500 via-blue-500 to-cyan-400 text-white shadow-xl flex items-center justify-center" onClick={()=>setSheetOpen(true)}>
         <PlusCircle size={24}/>
       </button>
 
       <AddSheet open={sheetOpen} onClose={()=>setSheetOpen(false)} onAdd={addItem} categories={categories} />
 
-      <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-md rounded-2xl bg-slate-900/80 backdrop-blur border border-white/10 p-2 flex items-center justify-between">
-        <button onClick={()=>setTab('home')} className={`flex-1 py-2 rounded-xl text-slate-300 flex flex-col items-center gap-1 ${tab==='home' && 'bg-white/5 text-white'}`}>
+      <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-md rounded-2xl bg-slate-900/80 backdrop-blur border border-white/10 p-2 flex items-center justify-between" role="tablist" aria-label="Bottom navigation">
+        <button onClick={()=>setTab('home')} className={`flex-1 py-2 rounded-xl text-slate-300 flex flex-col items-center gap-1 ${tab==='home' && 'bg-white/5 text-white'}`} role="tab" aria-selected={tab==='home'}>
           <Home size={20}/><span className="text-[11px]">Home</span>
         </button>
-        <button onClick={()=>setTab('add')} className={`flex-1 py-2 rounded-xl text-slate-300 flex flex-col items-center gap-1 ${tab==='add' && 'bg-white/5 text-white'}`}>
+        <button onClick={()=>setTab('add')} className={`flex-1 py-2 rounded-xl text-slate-300 flex flex-col items-center gap-1 ${tab==='add' && 'bg-white/5 text-white'}`} role="tab" aria-selected={tab==='add'}>
           <PlusCircle size={20}/><span className="text-[11px]">Add</span>
         </button>
-        <button onClick={()=>setTab('history')} className={`flex-1 py-2 rounded-xl text-slate-300 flex flex-col items-center gap-1 ${tab==='history' && 'bg-white/5 text-white'}`}>
+        <button onClick={()=>setTab('history')} className={`flex-1 py-2 rounded-xl text-slate-300 flex flex-col items-center gap-1 ${tab==='history' && 'bg-white/5 text-white'}`} role="tab" aria-selected={tab==='history'}>
           <History size={20}/><span className="text-[11px]">History</span>
         </button>
-        <button onClick={()=>setTab('profile')} className={`flex-1 py-2 rounded-xl text-slate-300 flex flex-col items-center gap-1 ${tab==='profile' && 'bg-white/5 text-white'}`}>
+        <button onClick={()=>setTab('profile')} className={`flex-1 py-2 rounded-xl text-slate-300 flex flex-col items-center gap-1 ${tab==='profile' && 'bg-white/5 text-white'}`} role="tab" aria-selected={tab==='profile'}>
           <User size={20}/><span className="text-[11px]">Profile</span>
         </button>
       </nav>
@@ -278,8 +280,8 @@ export default function MobileShell(){
                   <option value="expense">Expense</option>
                   <option value="income">Income</option>
                 </select>
-                <input type="date" value={filters.start} onChange={e=>setFilters(v=>({...v, start:e.target.value}))} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200"/>
-                <input type="date" value={filters.end} onChange={e=>setFilters(v=>({...v, end:e.target.value}))} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200"/>
+                <input aria-label="Start date" type="date" value={filters.start} onChange={e=>setFilters(v=>({...v, start:e.target.value}))} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200"/>
+                <input aria-label="End date" type="date" value={filters.end} onChange={e=>setFilters(v=>({...v, end:e.target.value}))} className="bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-slate-200"/>
               </div>
               <div>
                 {list.map(i=> <RecentItem key={i.id} item={i} currency={currency} />)}
